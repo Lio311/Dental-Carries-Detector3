@@ -4,6 +4,7 @@ from ultralytics import YOLO
 from PIL import Image
 import io
 import base64
+import os
 
 app = Flask(__name__)
 CORS(app)

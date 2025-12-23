@@ -7,7 +7,7 @@ import base64
 import os
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
 
 # Load model
 print("Loading YOLOv8 model...")

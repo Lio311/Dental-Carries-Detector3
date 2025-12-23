@@ -5,29 +5,55 @@ from PIL import Image
 import io
 import base64
 import os
+import sys
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
+# Allow specific origins or all (*)
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+# Global CORS header injection to be absolutely sure
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,PUT,POST,DELETE,OPTIONS'
+    return response
 
 # Load model
-print("Loading YOLOv8 model...")
-model = YOLO('best.pt')
-print("Model loaded successfully!")
+try:
+    print("Loading YOLOv8 model...", file=sys.stderr)
+    model = YOLO('best.pt')
+    print("Model loaded successfully!", file=sys.stderr)
+except Exception as e:
+    print(f"Error loading model: {e}", file=sys.stderr)
+    model = None
 
-@app.route('/api/detect', methods=['POST', 'OPTIONS'])
+@app.route('/api/detect', methods=['POST'])
 def detect():
-    if request.method == 'OPTIONS':
-        return '', 200
+    # Note: No need to handle OPTIONS here, Flask protocols it automatically or CORS handles it
+    
+    if model is None:
+        return jsonify({'success': False, 'error': 'Model not loaded'}), 500
     
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON data received'}), 400
+            
         image_data = data.get('image', '')
+        
+        if not image_data:
+            return jsonify({'success': False, 'error': 'No image data provided'}), 400
         
         # Decode base64 image
         if ',' in image_data:
             image_data = image_data.split(',')[1]
-        image_bytes = base64.b64decode(image_data)
-        image = Image.open(io.BytesIO(image_bytes))
+            
+        try:
+            image_bytes = base64.b64decode(image_data)
+            image = Image.open(io.BytesIO(image_bytes))
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Invalid image data: {str(e)}'}), 400
         
         # Convert to RGB
         if image.mode != 'RGB':
@@ -74,6 +100,7 @@ def detect():
         })
         
     except Exception as e:
+        print(f"Error during detection: {e}", file=sys.stderr)
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])

@@ -1,0 +1,6 @@
+Flask==3.0.0
+flask-cors==4.0.0
+ultralytics==8.3.240
+Pillow==10.4.0
+numpy==2.2.6
+gunicorn==21.2.0
